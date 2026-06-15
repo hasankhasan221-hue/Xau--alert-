@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0f1e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="XAU Alert" />
+  <link rel="manifest" href="manifest.json" />
+  <title>XAU/USD – كاشف نموذج M</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --bg:        #0a0f1e;
+      --surface:   #111827;
+      --surface2:  #1a2236;
+      --border:    #1e2d45;
+      --gold:      #f5c842;
+      --gold2:     #e8a800;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --blue:      #3b82f6;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --card-r:    16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans Arabic', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 20% 10%, rgba(245,200,66,.07) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 80% 80%, rgba(59,130,246,.06) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 16px 100px; }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0 16px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--gold), var(--gold2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+    .logo-sub  { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+    .status-dot {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted);
+      transition: background .3s;
+    }
+    .dot.active  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+    .dot.error   { background: var(--red); }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: .4; }
+    }
+
+    /* ── Price card ── */
+    .price-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-r);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .price-label { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+    .price-row   { display: flex; align-items: baseline; gap: 12px; }
+    .price-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 36px; font-weight: 600;
+      color: var(--gold);
+      letter-spacing: -1px;
+    }
+    .price-change {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; padding: 2px 8px;
+      border-radius: 6px; font-weight: 600;
+    }
+    .price-change.up   { background: rgba(34,197,94,.15); color: var(--green); }
+    .price-change.down { background: rgba(239,68,68,.15);  color: var(--red); }
+
+    .price-meta { display: flex; gap: 20px; margin-top: 12px; }
+    .price-meta span { font-size: 11px; color: var(--muted); }
+    .price-meta b    { color: var(--text); font-size: 12px; }
+
+    /* ── Timeframe selector ── */
+    .tf-row {
+      display: flex; gap: 8px; margin-bottom: 16px;
+    }
+    .tf-btn {
+      flex: 1; padding: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--muted);
+      font-family: 'IBM Plex Sans Arabic', sans-serif;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: all .2s;
+    }
+    .tf-btn.active {
+      background: linear-gradient(135deg, var(--gold), var(--gold2));
+      border-color: var(--gold);
+      color: #0a0f1e;
+    }
+
+    /* ── Conditions grid ── */
+    .section-title {
+      font-size: 12px; color: var(--muted); letter-spacing: .08em;
+      text-transform: uppercase; margin-bottom: 10px; margin-top: 4px;
+    }
+
+    .conditions {
+      display: grid; gap: 8px; margin-bottom: 16px;
+    }
+    .cond {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .cond-icon {
+      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      background: var(--surface2);
+    }
+    .cond-body { flex: 1; min-width: 0; }
+    .cond-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .cond-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .cond-status {
+      font-size: 11px; font-weight: 600; flex-shrink: 0;
+      padding: 3px 8px; border-radius: 6px;
+      background: var(--surface2); color: var(--muted);
+      transition: all .3s;
+    }
+    .cond-status.met     { background: rgba(34,197,94,.15); color: var(--green); }
+    .cond-status.not-met { background: rgba(239,68,68,.15);  color: var(--red); }
+
+    /* ── Mini chart ── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-r);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    canvas#miniChart { width: 100%; height: 140px; display: block; }
+
+    /* ── Alert log ── */
+    .alerts-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-r);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .alert-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .alert-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .alert-badge {
+      width: 8px; height: 8px; border-radius: 50%;
+      margin-top: 5px; flex-shrink: 0;
+    }
+    .alert-badge.pattern { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+    .alert-badge.info    { background: var(--blue); }
+    .alert-text  { font-size: 12px; line-height: 1.5; flex: 1; }
+    .alert-time  { font-size: 10px; color: var(--muted); flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }
+    .no-alerts   { font-size: 12px; color: var(--muted); text-align: center; padding: 20px 0; }
+
+    /* ── Bottom bar ── */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 480px;
+      background: rgba(10,15,30,.85);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px 28px;
+      z-index: 100;
+      display: flex; gap: 10px;
+    }
+    .btn-main {
+      flex: 1; padding: 14px;
+      background: linear-gradient(135deg, var(--gold), var(--gold2));
+      border: none; border-radius: 12px;
+      color: #0a0f1e; font-family: 'IBM Plex Sans Arabic', sans-serif;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn-main:active { transform: scale(.97); }
+    .btn-main.running {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+    }
+    .btn-test {
+      padding: 14px 16px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; color: var(--text);
+      font-family: 'IBM Plex Sans Arabic', sans-serif;
+      font-size: 13px; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-test:active { background: var(--border); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+      background: var(--gold); color: #0a0f1e;
+      padding: 12px 24px; border-radius: 50px;
+      font-size: 14px; font-weight: 700;
+      transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+      z-index: 999; white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Pattern alert modal ── */
+    #alertModal {
+      display: none;
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.7);
+      backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    #alertModal.open { display: flex; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--gold);
+      border-radius: 20px;
+      padding: 28px;
+      width: 100%; max-width: 360px;
+      text-align: center;
+      animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn {
+      from { transform: scale(.7); opacity: 0; }
+      to   { transform: scale(1);  opacity: 1; }
+    }
+    .modal-icon { font-size: 52px; margin-bottom: 12px; }
+    .modal-title { font-size: 22px; font-weight: 700; color: var(--gold); margin-bottom: 6px; }
+    .modal-sub   { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .modal-price { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 600; color: var(--text); margin: 12px 0; }
+    .modal-tf    { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .btn-dismiss {
+      width: 100%; padding: 13px;
+      background: var(--gold); border: none; border-radius: 12px;
+      color: #0a0f1e; font-family: 'IBM Plex Sans Arabic', sans-serif;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo-text">XAU Alert</div>
+        <div class="logo-sub">كاشف نموذج M</div>
+      </div>
+    </div>
+    <div class="status-dot">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">متوقف</span>
+    </div>
+  </header>
+
+  <!-- Price Card -->
+  <div class="price-card">
+    <div class="price-label">XAU/USD · Oanda</div>
+    <div class="price-row">
+      <div class="price-value" id="priceDisplay">-.--</div>
+      <div class="price-change" id="priceChange">--</div>
+    </div>
+    <div class="price-meta">
+      <span>فتح: <b id="openPrice">-</b></span>
+      <span>أعلى: <b id="highPrice">-</b></span>
+      <span>أدنى: <b id="lowPrice">-</b></span>
+    </div>
+  </div>
+
+  <!-- Timeframe -->
+  <div class="tf-row">
+    <button class="tf-btn active" id="tf5"  onclick="setTF(5)">5 دقائق</button>
+    <button class="tf-btn"        id="tf15" onclick="setTF(15)">15 دقيقة</button>
+  </div>
+
+  <!-- Mini Chart -->
+  <div class="chart-card">
+    <div class="section-title">آخر 50 شمعة</div>
+    <canvas id="miniChart"></canvas>
+  </div>
+
+  <!-- Conditions -->
+  <div class="section-title">شروط نموذج M</div>
+  <div class="conditions">
+    <div class="cond">
+      <div class="cond-icon">📈</div>
+      <div class="cond-body">
+        <div class="cond-name">موجة صاعدة</div>
+        <div class="cond-desc">وجود اتجاه صاعد واضح قبل النموذج</div>
+      </div>
+      <div class="cond-status" id="c1">انتظار</div>
+    </div>
+    <div class="cond">
+      <div class="cond-icon">Ⓜ️</div>
+      <div class="cond-body">
+        <div class="cond-name">قمتان واضحتان</div>
+        <div class="cond-desc">شكل M واضح · القمة الثانية ≥ الأولى (جسم الشمعة)</div>
+      </div>
+      <div class="cond-status" id="c2">انتظار</div>
+    </div>
+    <div class="cond">
+      <div class="cond-icon">📉</div>
+      <div class="cond-body">
+        <div class="cond-name">تباعد RSI</div>
+        <div class="cond-desc">RSI القمة الأولى أعلى من الثانية (تباعد هبوطي)</div>
+      </div>
+      <div class="cond-status" id="c3">انتظار</div>
+    </div>
+    <div class="cond">
+      <div class="cond-icon">✅</div>
+      <div class="cond-body">
+        <div class="cond-name">كسر القاع</div>
+        <div class="cond-desc">إغلاق تحت قاع المنطقة الوسطى بين القمتين</div>
+      </div>
+      <div class="cond-status" id="c4">انتظار</div>
+    </div>
+  </div>
+
+  <!-- Alert Log -->
+  <div class="alerts-card">
+    <div class="section-title">سجل التنبيهات</div>
+    <div id="alertLog">
+      <div class="no-alerts">لا توجد تنبيهات بعد</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar">
+  <button class="btn-main" id="mainBtn" onclick="toggleScanning()">▶ بدء المراقبة</button>
+  <button class="btn-test" onclick="testAlert()">🔔 تجربة</button>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Alert Modal -->
+<div id="alertModal">
+  <div class="modal-box">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title">تم اكتشاف نموذج M</div>
+    <div class="modal-sub">XAU/USD · Oanda</div>
+    <div class="modal-price" id="modalPrice">-</div>
+    <div class="modal-tf" id="modalTf">-</div>
+    <button class="btn-dismiss" onclick="closeModal()">حسناً، فهمت</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const API_KEY  = '61ca1a46a4ef40778575b7aff12fceb7';
+const SYMBOL   = 'XAU/USD';
+const INTERVAL_OPTIONS = { 5: '5min', 15: '15min' };
+
+let currentTF   = 5;
+let scanning    = false;
+let scanTimer   = null;
+let candles     = [];
+let alertLog    = [];
+let lastAlertTs = 0;
+
+// ── Audio context for alert sound ──
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playAlert() {
+  try {
+    const ctx = getAudio();
+    const freqs = [880, 1100, 880, 1320];
+    let t = ctx.currentTime;
+    freqs.forEach((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = f;
+      o.type = 'sine';
+      g.gain.setValueAtTime(0, t + i * .18);
+      g.gain.linearRampToValueAtTime(.35, t + i * .18 + .04);
+      g.gain.linearRampToValueAtTime(0,   t + i * .18 + .16);
+      o.start(t + i * .18);
+      o.stop(t + i * .18 + .17);
+    });
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════
+function setTF(tf) {
+  currentTF = tf;
+  document.getElementById('tf5').classList.toggle('active',  tf === 5);
+  document.getElementById('tf15').classList.toggle('active', tf === 15);
+  if (scanning) { fetchCandles(); }
+  showToast(`تم التغيير إلى ${tf} دقيقة`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setStatus(state) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className  = 'dot ' + (state === 'active' ? 'active' : state === 'error' ? 'error' : '');
+  text.textContent = state === 'active' ? 'يراقب' : state === 'error' ? 'خطأ' : 'متوقف';
+}
+
+function setCond(id, state, label) {
+  const el = document.getElementById(id);
+  el.textContent = label;
+  el.className   = 'cond-status ' + state;
+}
+
+function resetConds() {
+  ['c1','c2','c3','c4'].forEach(id => setCond(id, '', 'انتظار'));
+}
+
+function toggleScanning() {
+  scanning = !scanning;
+  const btn = document.getElementById('mainBtn');
+  if (scanning) {
+    btn.textContent = '⏹ إيقاف المراقبة';
+    btn.classList.add('running');
+    setStatus('active');
+    fetchCandles();
+    scanTimer = setInterval(fetchCandles, currentTF * 60 * 1000);
+    addLog('info', 'بدأت المراقبة');
+  } else {
+    btn.textContent = '▶ بدء المراقبة';
+    btn.classList.remove('running');
+    clearInterval(scanTimer);
+    setStatus('stopped');
+    resetConds();
+    addLog('info', 'توقفت المراقبة');
+  }
+}
+
+function addLog(type, msg) {
+  const now = new Date();
+  const time = now.toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' });
+  alertLog.unshift({ type, msg, time });
+  if (alertLog.length > 20) alertLog.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('alertLog');
+  if (!alertLog.length) {
+    el.innerHTML = '<div class="no-alerts">لا توجد تنبيهات بعد</div>';
+    return;
+  }
+  el.innerHTML = alertLog.map(a => `
+    <div class="alert-item">
+      <div class="alert-badge ${a.type === 'pattern' ? 'pattern' : 'info'}"></div>
+      <div class="alert-text">${a.msg}</div>
+      <div class="alert-time">${a.time}</div>
+    </div>
+  `).join('');
+}
+
+function openModal(price) {
+  document.getElementById('modalPrice').textContent = price.toFixed(2);
+  document.getElementById('modalTf').textContent    = `التايم فريم: ${currentTF} دقيقة`;
+  document.getElementById('alertModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('alertModal').classList.remove('open');
+}
+
+function testAlert() {
+  playAlert();
+  triggerPatternAlert(candles.length ? candles[candles.length-1].close : 2340.00);
+}
+
+function triggerPatternAlert(price) {
+  const now = Date.now();
+  if (now - lastAlertTs < 60000) return;   // debounce 1 min
+  lastAlertTs = now;
+  playAlert();
+  openModal(price);
+  addLog('pattern', `🔔 نموذج M مكتمل عند ${price.toFixed(2)}`);
+
+  // Push notification
+  if (Notification.permission === 'granted') {
+    new Notification('⚠️ نموذج M – XAU/USD', {
+      body: `السعر: ${price.toFixed(2)} | ${currentTF} دقيقة`,
+      icon: 'icon-192.png',
+      badge: 'icon-192.png'
+    });
+  }
+}
+
+// ══════════════════════════════════════════
+//  FETCH DATA
+// ══════════════════════════════════════════
+async function fetchCandles() {
+  try {
+    const interval = INTERVAL_OPTIONS[currentTF];
+    const url = `https://api.twelvedata.com/time_series?symbol=${SYMBOL}&interval=${interval}&outputsize=60&apikey=${API_KEY}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === 'error' || !data.values) {
+      setStatus('error');
+      addLog('info', '⚠️ خطأ في جلب البيانات');
+      return;
+    }
+
+    candles = data.values.slice().reverse().map(v => ({
+      open:  parseFloat(v.open),
+      high:  parseFloat(v.high),
+      low:   parseFloat(v.low),
+      close: parseFloat(v.close),
+      ts:    new Date(v.datetime).getTime()
+    }));
+
+    const last = candles[candles.length - 1];
+    const prev = candles[candles.length - 2];
+    updatePriceUI(last, prev);
+    drawChart(candles);
+    analyzePattern(candles);
+
+  } catch(e) {
+    setStatus('error');
+    addLog('info', '⚠️ تعذر الاتصال بالخادم');
+  }
+}
+
+function updatePriceUI(last, prev) {
+  const chg = last.close - prev.close;
+  const pct  = (chg / prev.close * 100).toFixed(2);
+  document.getElementById('priceDisplay').textContent = last.close.toFixed(2);
+  const chgEl = document.getElementById('priceChange');
+  chgEl.textContent  = (chg >= 0 ? '+' : '') + chg.toFixed(2) + ' (' + pct + '%)';
+  chgEl.className    = 'price-change ' + (chg >= 0 ? 'up' : 'down');
+  document.getElementById('openPrice').textContent = last.open.toFixed(2);
+  document.getElementById('highPrice').textContent = last.high.toFixed(2);
+  document.getElementById('lowPrice').textContent  = last.low.toFixed(2);
+}
+
+// ══════════════════════════════════════════
+//  RSI CALCULATION
+// ══════════════════════════════════════════
+function calcRSI(closes, period = 14) {
+  if (closes.length < period + 1) return [];
+  const rsi = new Array(period).fill(null);
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i-1];
+    if (d > 0) gains += d; else losses -= d;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  rsi.push(100 - 100 / (1 + avgGain / (avgLoss || 1e-10)));
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i-1];
+    avgGain = (avgGain * (period-1) + Math.max(d,0)) / period;
+    avgLoss = (avgLoss * (period-1) + Math.max(-d,0)) / period;
+    rsi.push(100 - 100 / (1 + avgGain / (avgLoss || 1e-10)));
+  }
+  return rsi;
+}
+
+// ══════════════════════════════════════════
+//  PATTERN ANALYSIS
+// ══════════════════════════════════════════
+function analyzePattern(c) {
+  if (c.length < 30) return;
+
+  const closes = c.map(x => x.close);
+  const opens  = c.map(x => x.open);
+  const highs  = c.map(x => x.high);
+  const lows   = c.map(x => x.low);
+  const rsi    = calcRSI(closes);
+
+  // Body high of candle (max of open/close)
+  const bodyHigh = i => Math.max(opens[i], closes[i]);
+  const bodyLow  = i => Math.min(opens[i], closes[i]);
+
+  const n = c.length;
+
+  // ── Find significant peaks in body high ──
+  function findPeaks(arr, radius = 3) {
+    const peaks = [];
+    for (let i = radius; i < arr.length - radius; i++) {
+      const window = arr.slice(i - radius, i + radius + 1);
+      if (arr[i] === Math.max(...window)) peaks.push(i);
+    }
+    return peaks;
+  }
+
+  const bodyHighs = c.map((_, i) => bodyHigh(i));
+  const peaks     = findPeaks(bodyHighs, 3);
+
+  let found    = false;
+  let condMet  = [false, false, false, false];
+
+  // Need at least 2 peaks
+  for (let pi = 1; pi < peaks.length; pi++) {
+    const p1 = peaks[pi - 1];
+    const p2 = peaks[pi];
+
+    if (p2 - p1 < 5)  continue;  // too close
+    if (p2 >= n - 1)  continue;  // need room after
+
+    const bh1 = bodyHigh(p1);
+    const bh2 = bodyHigh(p2);
+
+    // Condition 2: second peak body >= first peak body
+    const cond2 = bh2 >= bh1 * 0.9995;
+    if (!cond2) continue;
+
+    // Trough (valley) between peaks – lowest body low
+    let valleyIdx = p1;
+    let valleyLow = Infinity;
+    for (let j = p1 + 1; j < p2; j++) {
+      const bl = bodyLow(j);
+      if (bl < valleyLow) { valleyLow = bl; valleyIdx = j; }
+    }
+
+    // Condition 2 – shape clarity: valley must be significantly below both peaks
+    const clarity = Math.min(bh1, bh2) - valleyLow;
+    if (clarity < (Math.min(bh1, bh2) * 0.002)) continue;   // less than 0.2% height diff → not clear M
+
+    // Condition 3: RSI divergence – rsi[p1] > rsi[p2]
+    const rsi1 = rsi[p1], rsi2 = rsi[p2];
+    const cond3 = rsi1 !== null && rsi2 !== null && rsi1 > rsi2;
+
+    // Condition 1: uptrend before the first peak
+    const lookback = Math.max(0, p1 - 20);
+    const prePeakCandles = c.slice(lookback, p1 + 1);
+    const cond1 = checkUptrend(prePeakCandles, highs.slice(lookback, p1 + 1), lows.slice(lookback, p1 + 1));
+
+    // Condition 4: after second peak, price closes below valley low (no wick – close < valleyLow)
+    let cond4 = false;
+    for (let j = p2 + 1; j < n; j++) {
+      if (closes[j] < valleyLow) {
+        // Check no opposing candle during breakout
+        cond4 = true;
+        break;
+      }
+    }
+
+    condMet = [cond1, cond2, cond3, cond4];
+
+    if (cond1 && cond2 && cond3 && cond4) {
+      found = true;
+      break;
+    }
+  }
+
+  // Update UI conditions
+  setCond('c1', condMet[0] ? 'met' : 'not-met', condMet[0] ? '✓ مكتمل' : '✗ غير مكتمل');
+  setCond('c2', condMet[1] ? 'met' : 'not-met', condMet[1] ? '✓ مكتمل' : '✗ غير مكتمل');
+  setCond('c3', condMet[2] ? 'met' : 'not-met', condMet[2] ? '✓ مكتمل' : '✗ غير مكتمل');
+  setCond('c4', condMet[3] ? 'met' : 'not-met', condMet[3] ? '✓ مكتمل' : '✗ غير مكتمل');
+
+  if (found) {
+    triggerPatternAlert(closes[n - 1]);
+  }
+}
+
+// ── Uptrend checker ──
+function checkUptrend(candles, highs, lows) {
+  if (candles.length < 5) return false;
+
+  const n = highs.length;
+  // Type 1: consistent new highs
+  let newHighCount = 0;
+  for (let i = 1; i < n; i++) if (highs[i] > highs[i-1]) newHighCount++;
+  if (newHighCount / (n-1) > 0.6) return true;
+
+  // Type 2/3: higher lows structure
+  let hlCount = 0;
+  for (let i = 1; i < n; i++) if (lows[i] >= lows[i-1] * 0.9995) hlCount++;
+  return hlCount / (n-1) > 0.5;
+}
+
+// ══════════════════════════════════════════
+//  MINI CHART (Canvas)
+// ══════════════════════════════════════════
+function drawChart(c) {
+  const cvs = document.getElementById('miniChart');
+  const dpr = window.devicePixelRatio || 1;
+  const W   = cvs.offsetWidth  || 320;
+  const H   = 140;
+  cvs.width  = W * dpr;
+  cvs.height = H * dpr;
+  const ctx  = cvs.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const data = c.slice(-50);
+  if (!data.length) return;
+
+  const allH = data.map(x => x.high);
+  const allL = data.map(x => x.low);
+  const maxP = Math.max(...allH);
+  const minP = Math.min(...allL);
+  const pad  = (maxP - minP) * 0.1 || 1;
+
+  function toX(i) { return (i / (data.length - 1)) * (W - 16) + 8; }
+  function toY(p) { return H - 12 - ((p - minP + pad) / (maxP - minP + pad * 2)) * (H - 24); }
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,45,69,.6)';
+  ctx.lineWidth   = 1;
+  [.25, .5, .75].forEach(f => {
+    const y = H - 12 - f * (H - 24);
+    ctx.beginPath(); ctx.moveTo(8, y); ctx.lineTo(W-8, y); ctx.stroke();
+  });
+
+  // Gradient fill under closes
+  const closes = data.map(x => x.close);
+  const grad   = ctx.createLinearGradient(0, toY(Math.max(...closes)), 0, H);
+  grad.addColorStop(0,   'rgba(245,200,66,.25)');
+  grad.addColorStop(1,   'rgba(245,200,66,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(toX(0), H);
+  closes.forEach((p, i) => ctx.lineTo(toX(i), toY(p)));
+  ctx.lineTo(toX(closes.length - 1), H);
+  ctx.closePath(); ctx.fill();
+
+  // Line
+  ctx.strokeStyle = '#f5c842';
+  ctx.lineWidth   = 1.5;
+  ctx.lineJoin    = 'round';
+  ctx.beginPath();
+  closes.forEach((p, i) => i === 0 ? ctx.moveTo(toX(i), toY(p)) : ctx.lineTo(toX(i), toY(p)));
+  ctx.stroke();
+
+  // Last dot
+  const lastY = toY(closes[closes.length - 1]);
+  const lastX = toX(closes.length - 1);
+  ctx.fillStyle = '#f5c842';
+  ctx.beginPath(); ctx.arc(lastX, lastY, 3.5, 0, Math.PI*2); ctx.fill();
+}
+
+// ══════════════════════════════════════════
+//  NOTIFICATIONS PERMISSION
+// ══════════════════════════════════════════
+async function requestNotifPerms() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+window.addEventListener('load', () => {
+  requestNotifPerms();
+  renderLog();
+  // Draw empty chart placeholder
+  const cvs = document.getElementById('miniChart');
+  const W = cvs.offsetWidth || 320;
+  cvs.width  = W; cvs.height = 140;
+});
+
+window.addEventListener('resize', () => {
+  if (candles.length) drawChart(candles);
+});
+</script>
+</body>
+</html>
